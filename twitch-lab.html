@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Twitch Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one lab-bench column read top to bottom in the order the body does it — spike, signal chain, sarcomere, questions. Colors borrow the H&E histology stain: eosin pink for actin, hematoxylin violet for myosin. */
+:root{
+  --bg:#FBF7F8; --panel:#FFFFFF; --ink:#24193A; --muted:#6A5F78; --line:#E7DDE4;
+  --eosin:#C4386A; --hema:#4F3F95; --ca:#C98612; --na:#D7611F; --k:#2B74AE;
+  --grid:#F0E8ED; --scope:#FDFAFB; --soft:#F6EEF2;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15111D; --panel:#1E1829; --ink:#EEE8F4; --muted:#A99DB8; --line:#342A41;
+    --eosin:#F06B98; --hema:#A897F2; --ca:#F2B54A; --na:#F58A50; --k:#62ADEA;
+    --grid:#2A2236; --scope:#19141F; --soft:#251E31; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15111D; --panel:#1E1829; --ink:#EEE8F4; --muted:#A99DB8; --line:#342A41;
+  --eosin:#F06B98; --hema:#A897F2; --ca:#F2B54A; --na:#F58A50; --k:#62ADEA;
+  --grid:#2A2236; --scope:#19141F; --soft:#251E31; color-scheme:dark;
+}
+*{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.1}
+h1{font-size:clamp(2.4rem,7vw,4rem);font-weight:800;letter-spacing:-.02em}
+h1 span{color:var(--eosin)}
+h2{font-size:clamp(1.35rem,3.4vw,1.8rem);font-weight:700}
+h3{font-size:1.05rem;font-weight:700}
+p{margin:0}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+header{display:flex;flex-direction:column;gap:10px;padding-top:8px}
+.lede{max-width:62ch;color:var(--muted);font-size:1.05rem}
+section{display:flex;flex-direction:column;gap:14px}
+.sec-head{display:flex;flex-direction:column;gap:6px;border-top:2px solid var(--ink);padding-top:12px}
+.sec-head p{max-width:65ch;color:var(--muted)}
+.stage{font-family:var(--mono);font-size:.8rem;color:var(--eosin);letter-spacing:.06em}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px}
+@media (max-width:760px){.grid2{grid-template-columns:minmax(0,1fr)}}
+canvas{display:block;width:100%;border-radius:6px}
+#scope{height:260px;background:var(--scope);border:1px solid var(--line)}
+#sarc{height:310px;background:var(--scope);border:1px solid var(--line)}
+.controls{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;margin-top:12px}
+.ctrl{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1 1 180px}
+.ctrl label{font-size:.85rem;font-weight:600;display:flex;justify-content:space-between;gap:8px}
+.ctrl output{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--eosin);height:28px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{font:600 .95rem var(--body);border-radius:8px;padding:9px 14px;border:1.5px solid var(--ink);background:var(--panel);color:var(--ink);cursor:pointer;min-height:42px}
+button.primary{background:var(--ink);color:var(--bg)}
+button:hover{border-color:var(--eosin)}
+button[aria-pressed="true"]{background:var(--eosin);border-color:var(--eosin);color:#fff}
+button:focus-visible,input:focus-visible,summary:focus-visible,li[tabindex]:focus-visible{outline:3px solid var(--eosin);outline-offset:2px}
+.checks{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:.9rem}
+.checks label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.checks input{accent-color:var(--eosin);width:18px;height:18px}
+.status{display:flex;flex-direction:column;gap:14px}
+.phase{font-family:var(--display);font-size:1.3rem;font-weight:700;line-height:1.2;min-height:3.1em}
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:.78rem;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:var(--soft);width:max-content;max-width:100%}
+.chip i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.chip.ready i{background:#3A9A5B}.chip.abs i{background:var(--eosin)}.chip.rel i{background:var(--ca)}
+.gauge{display:flex;flex-direction:column;gap:4px}
+.gauge .top{display:flex;justify-content:space-between;font-size:.85rem;gap:8px}
+.gauge .top b{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums}
+.bar{height:10px;border-radius:5px;background:var(--grid);overflow:hidden}
+.bar > div{height:100%;width:0;border-radius:5px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:.9rem}
+.kv dt{color:var(--muted)}.kv dd{margin:0;font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.note{font-size:.85rem;color:var(--muted)}
+ol.chain{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:8px;counter-reset:s}
+ol.chain li{counter-increment:s;display:grid;grid-template-columns:2rem minmax(0,1fr);gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);transition:background .25s,border-color .25s}
+ol.chain li::before{content:counter(s);font-family:var(--mono);font-weight:500;color:var(--muted);font-size:.9rem;padding-top:1px}
+ol.chain li b{display:block;font-size:.95rem}
+ol.chain li span{font-size:.86rem;color:var(--muted)}
+ol.chain li.done{border-color:var(--line);background:var(--soft)}
+ol.chain li.on{border-color:var(--eosin);background:var(--soft);box-shadow:inset 3px 0 0 var(--eosin)}
+ol.chain li.on::before{color:var(--eosin)}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--panel);display:flex;flex-direction:column;gap:2px}
+.tile small{font-size:.78rem;color:var(--muted)}
+.tile b{font-family:var(--mono);font-size:1.15rem;font-weight:500;font-variant-numeric:tabular-nums}
+.tile em{font-style:normal;font-size:.75rem;color:var(--muted)}
+.cycle{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (max-width:560px){.cycle{grid-template-columns:minmax(0,1fr)}}
+.cycle li{padding:10px 12px;border:1px dashed var(--line);border-radius:8px;font-size:.88rem;transition:all .2s}
+.cycle li b{display:block;font-size:.95rem}
+.cycle li.on{border:1px solid var(--hema);background:var(--soft)}
+.cycle li.on b{color:var(--hema)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.82rem;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:14px;height:6px;border-radius:3px;display:inline-block}
+details{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:10px 14px}
+details summary{cursor:pointer;font-weight:600}
+details p{margin-top:8px;color:var(--muted);max-width:65ch}
+.qs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:8px}
+footer{font-size:.88rem;color:var(--muted);display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:14px}
+footer ul{margin:0;padding-left:1.1rem;display:flex;flex-direction:column;gap:4px}
+footer a{color:var(--hema)}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Muscle physiology · interactive lab</div>
+  <h1>Twitch <span>Lab</span></h1>
+  <p class="lede">Fire an action potential, follow the signal to the calcium stores, and watch myosin heads walk the thin filaments of one sarcomere. Every spike you trigger in Part 1 drives a twitch in Part 3.</p>
+</header>
+
+<section id="spike">
+  <div class="sec-head">
+    <div class="stage">PART 1 · THE ELECTRICAL SIGNAL</div>
+    <h2>Action potential</h2>
+    <p>The trace is a live membrane-voltage simulation, slowed way down. Give the membrane a 1 ms jolt of current and see whether it crosses threshold.</p>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <canvas id="scope" aria-label="Oscilloscope trace of membrane voltage over time"></canvas>
+      <div class="controls">
+        <div class="ctrl">
+          <label for="amp">Stimulus strength <output id="ampOut">10 µA/cm²</output></label>
+          <input id="amp" type="range" min="0" max="20" step="0.5" value="10">
+        </div>
+        <div class="ctrl">
+          <label for="gap">Gap between double pulses <output id="gapOut">12 ms</output></label>
+          <input id="gap" type="range" min="2" max="25" step="1" value="12">
+        </div>
+      </div>
+      <div class="controls">
+        <div class="btns">
+          <button class="primary" id="stim">Stimulate</button>
+          <button id="dbl">Double pulse</button>
+          <button id="speed" aria-pressed="false">Slower</button>
+        </div>
+      </div>
+      <div class="controls checks">
+        <label><input type="checkbox" id="blockNa"> Block Na⁺ channels</label>
+        <label><input type="checkbox" id="blockK"> Block K⁺ channels</label>
+        <label><input type="checkbox" id="link" checked> Each spike triggers a twitch</label>
+      </div>
+    </div>
+    <div class="panel status">
+      <div>
+        <div class="eyebrow">Right now</div>
+        <div class="phase" id="phase">Resting</div>
+        <div class="chip ready" id="refr"><i></i><span>Ready to fire</span></div>
+      </div>
+      <div class="gauge"><div class="top"><span>Na⁺ activation gate open</span><b id="gm">0%</b></div><div class="bar"><div id="bm" style="background:var(--na)"></div></div></div>
+      <div class="gauge"><div class="top"><span>Na⁺ inactivation gate open</span><b id="gh">0%</b></div><div class="bar"><div id="bh" style="background:var(--na);opacity:.55"></div></div></div>
+      <div class="gauge"><div class="top"><span>K⁺ gate open</span><b id="gn">0%</b></div><div class="bar"><div id="bn" style="background:var(--k)"></div></div></div>
+      <dl class="kv">
+        <dt>Membrane voltage</dt><dd id="vNow">−65 mV</dd>
+        <dt>Last response peak</dt><dd id="peak">—</dd>
+        <dt>Spikes fired</dt><dd id="count">0</dd>
+      </dl>
+      <p class="note">A Na⁺ channel conducts only when its activation gate is open <em>and</em> its inactivation gate hasn’t closed.</p>
+    </div>
+  </div>
+</section>
+
+<section id="coupling">
+  <div class="sec-head">
+    <div class="stage">PART 2 · EXCITATION–CONTRACTION COUPLING</div>
+    <h2>From spike to calcium</h2>
+    <p>Steps light up in order each time a spike fires (with “Each spike triggers a twitch” on). Tap any step to highlight it.</p>
+  </div>
+  <ol class="chain" id="chain">
+    <li tabindex="0"><div><b>Nerve impulse arrives</b><span>A motor neuron action potential reaches the axon terminal.</span></div></li>
+    <li tabindex="0"><div><b>ACh is released</b><span>Ca²⁺ enters the terminal and vesicles dump acetylcholine into the synaptic cleft.</span></div></li>
+    <li tabindex="0"><div><b>End plate depolarizes</b><span>ACh opens receptor channels on the motor end plate; Na⁺ rushes in.</span></div></li>
+    <li tabindex="0"><div><b>Muscle AP spreads</b><span>The action potential races along the sarcolemma and down the T-tubules.</span></div></li>
+    <li tabindex="0"><div><b>SR gates open</b><span>Voltage sensors (DHP receptors) in the T-tubules open ryanodine receptors in the sarcoplasmic reticulum.</span></div></li>
+    <li tabindex="0"><div><b>Ca²⁺ floods out</b><span>Calcium pours into the sarcoplasm and binds troponin.</span></div></li>
+    <li tabindex="0"><div><b>Sites uncovered</b><span>Troponin shifts tropomyosin off the myosin-binding sites on actin.</span></div></li>
+    <li tabindex="0"><div><b>Cross-bridges cycle</b><span>Myosin heads bind, pull thin filaments toward the M line, release, and repeat.</span></div></li>
+    <li tabindex="0"><div><b>Relaxation</b><span>Acetylcholinesterase destroys ACh; SERCA pumps spend ATP to return Ca²⁺ to the SR; tropomyosin re-covers the sites.</span></div></li>
+  </ol>
+</section>
+
+<section id="sarcomere">
+  <div class="sec-head">
+    <div class="stage">PART 3 · SLIDING FILAMENT MODEL</div>
+    <h2>Inside one sarcomere</h2>
+    <p>Neither filament gets shorter. Thin filaments slide past thick ones, so the Z discs move closer together. Watch which bands change and which stay fixed.</p>
+  </div>
+  <div class="panel">
+    <canvas id="sarc" aria-label="Animated sarcomere with actin, myosin, Z discs and band labels"></canvas>
+    <div class="legend" style="margin-top:10px">
+      <span><i style="background:var(--eosin)"></i>Actin (thin filament)</span>
+      <span><i style="background:var(--hema)"></i>Myosin (thick filament + heads)</span>
+      <span><i style="background:var(--ink);height:3px"></i>Tropomyosin</span>
+      <span><i style="background:var(--ca);width:8px;height:8px;border-radius:50%"></i>Ca²⁺</span>
+      <span><i style="background:var(--eosin);width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 2px var(--panel),0 0 0 3.5px var(--eosin)"></i>Tracked head</span>
+    </div>
+    <div class="controls">
+      <div class="btns">
+        <button class="primary" id="twitch">Single twitch</button>
+        <button id="tetanus" aria-pressed="false">Hold Ca²⁺ high</button>
+        <button id="atp" aria-pressed="true">ATP available</button>
+        <button id="reset">Reset muscle</button>
+      </div>
+    </div>
+  </div>
+  <div class="tiles">
+    <div class="tile"><small>Sarcomere (Z to Z)</small><b id="tL">2.60 µm</b><em id="tLp">at rest</em></div>
+    <div class="tile"><small>A band</small><b id="tA">1.60 µm</b><em>thick filament length</em></div>
+    <div class="tile"><small>I band</small><b id="tI">1.00 µm</b><em>actin-only zone</em></div>
+    <div class="tile"><small>H zone</small><b id="tH">0.60 µm</b><em>myosin-only zone</em></div>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <h3>Cross-bridge cycle of the tracked head</h3>
+      <ul class="cycle" id="cycle" style="margin-top:10px">
+        <li><b>Cocked</b>Head holds ADP + Pi, waiting for an open binding site.</li>
+        <li><b>Attach + power stroke</b>Head binds actin, releases Pi and ADP, and pulls the thin filament toward the M line.</li>
+        <li><b>Bound (rigor)</b>Head stays locked to actin until a fresh ATP arrives.</li>
+        <li><b>Release + re-cock</b>ATP binds and the head lets go, then splits ATP to re-cock.</li>
+      </ul>
+    </div>
+    <div class="panel status">
+      <div class="gauge"><div class="top"><span>Ca²⁺ in sarcoplasm</span><b id="gca">0%</b></div><div class="bar"><div id="bca" style="background:var(--ca)"></div></div></div>
+      <div class="gauge"><div class="top"><span>Binding sites exposed</span><b id="gact">0%</b></div><div class="bar"><div id="bact" style="background:var(--eosin)"></div></div></div>
+      <div class="gauge"><div class="top"><span>Heads attached to actin</span><b id="gatt">0%</b></div><div class="bar"><div id="batt" style="background:var(--hema)"></div></div></div>
+      <p class="note" id="mnote">Muscle relaxed. Tropomyosin covers the binding sites.</p>
+    </div>
+  </div>
+</section>
+
+<section id="questions">
+  <div class="sec-head">
+    <div class="stage">CHECK YOURSELF</div>
+    <h2>Predict, then test</h2>
+    <p>Write a prediction first, run the experiment, then open the explanation.</p>
+  </div>
+  <div class="qs">
+    <details><summary>Raise the stimulus a little at a time from 0. Once a spike appears, does a stronger stimulus make a taller spike?</summary><p>No. Below threshold you only get a small graded bump that fades. Once threshold is crossed, positive feedback (more depolarization opens more Na⁺ channels) produces a full spike of about the same height every time. This is the all-or-none principle. A stronger stimulus mostly makes the spike start sooner.</p></details>
+    <details><summary>Fire a double pulse with a 6 ms gap. Why does the second pulse fail? Then try a 12 ms gap at 10 and at 20 µA/cm².</summary><p>Right after a spike, the Na⁺ inactivation gates are closed, and no stimulus can reopen those channels until they reset. That is the absolute refractory period. At a 12 ms gap, 10 µA/cm² still fails but 20 µA/cm² fires a second spike: the membrane can fire again, but only with a stronger push, because some Na⁺ channels are still inactivated and K⁺ gates are still open. That is the relative refractory period. (This squid-axon model runs cold, so its refractory periods are longer than in a human neuron.)</p></details>
+    <details><summary>Block Na⁺ channels, then stimulate hard. What happens, and why would that matter for a nerve?</summary><p>No spike forms, because the rising phase depends on Na⁺ rushing in. Tetrodotoxin (pufferfish toxin) and local anesthetics like lidocaine work by blocking voltage-gated Na⁺ channels, so signals never reach the muscle.</p></details>
+    <details><summary>Block K⁺ channels and fire a spike. Which phase changes most?</summary><p>Repolarization. Without K⁺ flowing out, the voltage drifts down slowly as Na⁺ channels inactivate and leak currents act. There is no undershoot below rest.</p></details>
+    <details><summary>During a contraction, which bands get shorter and which stay the same?</summary><p>The I band and H zone shrink. The A band stays 1.60 µm because it is the length of the thick filaments, and filaments don’t change length. That observation in the 1950s is what led to the sliding filament model.</p></details>
+    <details><summary>Hold Ca²⁺ high, let the sarcomere shorten, then turn ATP off and release the calcium. Why does it stay locked?</summary><p>Myosin needs a new ATP to let go of actin. Without ATP, attached heads stay in the bound (rigor) state and the sarcomere can’t relax. SERCA pumps also need ATP, so Ca²⁺ isn’t cleared. This is why muscles stiffen in rigor mortis.</p></details>
+    <details><summary>Compare one twitch with holding Ca²⁺ high. How does the body hold a steady contraction?</summary><p>A single spike releases a brief pulse of Ca²⁺, so the sarcomere shortens and then relaxes. When spikes come fast enough, Ca²⁺ never gets pumped away and the contraction is sustained. This is tetanus (the physiology term, not the disease).</p></details>
+  </div>
+</section>
+
+<footer>
+  <p><b>Model notes.</b> The voltage trace solves the Hodgkin–Huxley equations for the squid giant axon (rest ≈ −65 mV, threshold ≈ −55 mV). Textbooks often use −70 mV for neurons; skeletal muscle fibers rest closer to −90 mV, but the shape and logic of the spike are the same. Time is slowed, and the three parts are not on the same time scale. The sarcomere uses textbook-typical dimensions: thick filaments 1.6 µm, thin filaments 1.0 µm per side, resting sarcomere 2.6 µm.</p>
+  <p><b>Sources</b></p>
+  <ul>
+    <li><a href="https://openstax.org/books/anatomy-and-physiology-2e/pages/10-2-skeletal-muscle" target="_blank" rel="noopener">OpenStax, Anatomy &amp; Physiology 2e, 10.2 Skeletal Muscle</a></li>
+    <li><a href="https://openstax.org/books/anatomy-and-physiology-2e/pages/10-3-muscle-fiber-contraction-and-relaxation" target="_blank" rel="noopener">OpenStax, Anatomy &amp; Physiology 2e, 10.3 Muscle Fiber Contraction and Relaxation</a></li>
+    <li><a href="https://openstax.org/books/anatomy-and-physiology-2e/pages/12-4-the-action-potential" target="_blank" rel="noopener">OpenStax, Anatomy &amp; Physiology 2e, 12.4 The Action Potential</a></li>
+    <li>Hodgkin, A. L. &amp; Huxley, A. F. (1952). A quantitative description of membrane current and its application to conduction and excitation in nerve. <i>J. Physiol.</i> 117, 500–544. <a href="https://doi.org/10.1113/jphysiol.1952.sp004764" target="_blank" rel="noopener">doi:10.1113/jphysiol.1952.sp004764</a></li>
+    <li>Huxley, A. F. &amp; Niedergerke, R. (1954) and Huxley, H. E. &amp; Hanson, J. (1954), back-to-back papers proposing sliding filaments. <i>Nature</i> 173, 971–976.</li>
+    <li>Lymn, R. W. &amp; Taylor, E. W. (1971). Mechanism of adenosine triphosphate hydrolysis by actomyosin. <i>Biochemistry</i> 10, 4617–4624 (the cross-bridge cycle).</li>
+  </ul>
+</footer>
+</div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+let C={};
+function readColors(){const s=getComputedStyle(document.documentElement);['bg','panel','ink','muted','line','eosin','hema','ca','na','k','grid','scope'].forEach(n=>C[n]=s.getPropertyValue('--'+n).trim());}
+readColors();
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readColors);}catch(e){}
+new MutationObserver(readColors).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+function fit(cv){const r=cv.getBoundingClientRect();const d=window.devicePixelRatio||1;cv.width=Math.max(1,Math.round(r.width*d));cv.height=Math.max(1,Math.round(r.height*d));const ctx=cv.getContext('2d');ctx.setTransform(d,0,0,d,0,0);return{ctx,w:r.width,h:r.height};}
+let S=fit($('#scope')), M=fit($('#sarc'));
+addEventListener('resize',()=>{S=fit($('#scope'));M=fit($('#sarc'));});
+const fmt=(v,d=0)=>(v<0?'−':(v>0&&d===0?'+':''))+Math.abs(v).toFixed(d);
+
+/* ---------- Hodgkin–Huxley membrane ---------- */
+function rates(V){
+  const am=Math.abs(V+40)<1e-7?1:0.1*(V+40)/(1-Math.exp(-(V+40)/10));
+  const bm=4*Math.exp(-(V+65)/18);
+  const ah=0.07*Math.exp(-(V+65)/20), bh=1/(1+Math.exp(-(V+35)/10));
+  const an=Math.abs(V+55)<1e-7?0.1:0.01*(V+55)/(1-Math.exp(-(V+55)/10));
+  const bn=0.125*Math.exp(-(V+65)/80);
+  return{am,bm,ah,bh,an,bn};
+}
+const H={V:-65,t:0,dV:0};
+(function(){const r=rates(-65);H.m=r.am/(r.am+r.bm);H.h=r.ah/(r.ah+r.bh);H.n=r.an/(r.an+r.bn);})();
+let pulses=[], blockNa=false, blockK=false;
+function current(t){let I=0;for(const p of pulses) if(t>=p.t0&&t<p.t1) I+=p.amp;return I;}
+function step(dt){
+  const I=current(H.t), r=rates(H.V);
+  H.m+=dt*(r.am*(1-H.m)-r.bm*H.m);
+  H.h+=dt*(r.ah*(1-H.h)-r.bh*H.h);
+  H.n+=dt*(r.an*(1-H.n)-r.bn*H.n);
+  const gNa=blockNa?0:120, gK=blockK?0:36;
+  const INa=gNa*H.m**3*H.h*(H.V-50), IK=gK*H.n**4*(H.V+77), IL=0.3*(H.V+54.387);
+  H.dV=I-INa-IK-IL;
+  H.V+=dt*H.dV; H.t+=dt;
+  return I;
+}
+const SW=40, N=400, SDT=SW/N;
+const buf=new Float32Array(N).fill(NaN), stimB=new Uint8Array(N);
+let nextSample=0, slow=150, spikes=0, peak=-999, lastPulse=-1e9, peakShown=true;
+
+$('#amp').addEventListener('input',e=>$('#ampOut').textContent=(+e.target.value).toFixed(1).replace('.0','')+' µA/cm²');
+$('#gap').addEventListener('input',e=>$('#gapOut').textContent=e.target.value+' ms');
+$('#blockNa').addEventListener('change',e=>blockNa=e.target.checked);
+$('#blockK').addEventListener('change',e=>blockK=e.target.checked);
+function fire(at){const a=+$('#amp').value;pulses.push({t0:at,t1:at+1,amp:a});}
+function beginPeak(){lastPulse=H.t+0.3;peak=-999;peakShown=false;}
+$('#stim').addEventListener('click',()=>{beginPeak();fire(H.t+0.3);});
+$('#dbl').addEventListener('click',()=>{beginPeak();fire(H.t+0.3);fire(H.t+0.3+(+$('#gap').value));});
+$('#speed').addEventListener('click',e=>{const on=e.currentTarget.getAttribute('aria-pressed')!=='true';e.currentTarget.setAttribute('aria-pressed',on);slow=on?400:150;});
+
+/* ---------- E-C coupling chain ---------- */
+const steps=[...document.querySelectorAll('#chain li')];
+let chainTimers=[], waitingRelax=false;
+function clearChain(){chainTimers.forEach(clearTimeout);chainTimers=[];steps.forEach(s=>s.classList.remove('on','done'));waitingRelax=false;}
+function runChain(){
+  clearChain();
+  for(let i=0;i<8;i++) chainTimers.push(setTimeout(()=>{steps.forEach((s,j)=>{s.classList.toggle('on',j===i);s.classList.toggle('done',j<i);});if(i===7)waitingRelax=true;},i*320));
+}
+steps.forEach((s,i)=>{const f=()=>{clearChain();s.classList.add('on');};s.addEventListener('click',f);s.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();f();}});});
+
+/* ---------- Muscle model ---------- */
+const Mu={ca:0,L:2.6,atp:true,tet:false,rel:0};
+const LREST=2.6,LMIN=2.0,THICK=1.6,THIN=1.0;
+function twitch(){Mu.rel=0.22;}
+function onSpike(){spikes++;$('#count').textContent=spikes;if($('#link').checked){twitch();runChain();}}
+$('#twitch').addEventListener('click',()=>{twitch();runChain();});
+$('#tetanus').addEventListener('click',e=>{Mu.tet=e.currentTarget.getAttribute('aria-pressed')!=='true';e.currentTarget.setAttribute('aria-pressed',Mu.tet);if(Mu.tet)runChain();});
+$('#atp').addEventListener('click',e=>{Mu.atp=e.currentTarget.getAttribute('aria-pressed')!=='true';e.currentTarget.setAttribute('aria-pressed',Mu.atp);e.currentTarget.textContent=Mu.atp?'ATP available':'ATP removed';});
+$('#reset').addEventListener('click',()=>{Mu.ca=0;Mu.L=LREST;Mu.rel=0;Mu.tet=false;Mu.atp=true;$('#tetanus').setAttribute('aria-pressed',false);const a=$('#atp');a.setAttribute('aria-pressed',true);a.textContent='ATP available';heads.forEach(h=>h.p=Math.random()*0.95);clearChain();});
+
+const heads=[]; let featured=null;
+for(let r=0;r<3;r++)for(const side of[-1,1])for(let d=0.12;d<0.79;d+=0.06)for(const v of[-1,1]){
+  const h={r,side,d,v,p:Math.random()*0.95,k:0.7+Math.random()*0.6};heads.push(h);
+  if(r===0&&side===1&&v===1&&Math.abs(d-0.6)<0.031&&!featured){featured=h;h.k=1;}
+}
+const caDots=Array.from({length:60},()=>({x:Math.random()*2-1,y:Math.random(),ph:Math.random()*6.28}));
+const act=()=>{const c=Mu.ca**3;return c/(c+0.027);};
+
+function updateMuscle(dt){
+  if(Mu.rel>0){Mu.rel-=dt;}
+  const releasing=Mu.rel>0||Mu.tet;
+  Mu.ca+=dt*((releasing?7*(1-Mu.ca):0)-(Mu.atp?2.4*Mu.ca:0));
+  Mu.ca=Math.min(1,Math.max(0,Mu.ca));
+  const a=act();
+  if(Mu.atp){Mu.L+=dt*(-1.1*a+1.2*(LREST-Mu.L)*(1-a));}
+  Mu.L=Math.min(LREST,Math.max(LMIN,Mu.L));
+  const tip=Mu.L/2-THIN;
+  for(const h of heads){
+    const cov=h.d>=tip-0.01;
+    if(h.p<1){ if(cov&&a>0.05) h.p+=dt*2.6*a*h.k; if(h.p>1)h.p=1.0001;}
+    else if(h.p<2){ h.p+=dt*3*h.k; }
+    else if(h.p<3){ if(Mu.atp) h.p+=dt*3*h.k; }
+    else { h.p+=dt*2.2*h.k; if(h.p>=4)h.p-=4; }
+    if(!cov&&h.p>=1&&h.p<3)h.p=3;
+  }
+  if(waitingRelax&&!Mu.tet&&Mu.ca<0.15&&a<0.1){waitingRelax=false;steps.forEach((s,j)=>{s.classList.toggle('on',j===8);s.classList.toggle('done',j<8);});chainTimers.push(setTimeout(clearChain,2200));}
+}
+
+/* ---------- Drawing ---------- */
+function drawScope(){
+  const{ctx,w,h}=S;ctx.clearRect(0,0,w,h);
+  const L=40,R=10,T=10,B=24,pw=w-L-R,ph=h-T-B;
+  const y=V=>T+(60-V)/150*ph, x=t=>L+t/SW*pw;
+  ctx.font='11px "IBM Plex Mono", monospace';ctx.textBaseline='middle';
+  for(const V of[40,0,-40,-80]){ctx.strokeStyle=C.grid;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(L,y(V));ctx.lineTo(w-R,y(V));ctx.stroke();ctx.fillStyle=C.muted;ctx.textAlign='right';ctx.fillText(fmt(V),L-6,y(V));}
+  ctx.textAlign='center';ctx.textBaseline='top';
+  for(let t=0;t<=SW;t+=10){ctx.strokeStyle=C.grid;ctx.beginPath();ctx.moveTo(x(t),T);ctx.lineTo(x(t),T+ph);ctx.stroke();ctx.fillStyle=C.muted;ctx.fillText(t===SW?t+' ms':t,Math.min(x(t),w-R-16),T+ph+6);}
+  ctx.textBaseline='middle';ctx.textAlign='left';ctx.fillStyle=C.muted;ctx.fillText('mV',4,T+4);
+  ctx.setLineDash([5,4]);ctx.strokeStyle=C.eosin;ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(L,y(-55));ctx.lineTo(w-R,y(-55));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=C.eosin;ctx.textAlign='right';ctx.fillText('threshold ≈ −55',w-R-4,y(-55)-9);
+  ctx.fillStyle=C.na;
+  for(let i=0;i<N;i++) if(stimB[i]) ctx.fillRect(x(i*SDT),T+ph-6,pw/N+0.5,6);
+  ctx.strokeStyle=C.hema;ctx.lineWidth=2.2;ctx.lineJoin='round';ctx.beginPath();let pen=false;
+  for(let i=0;i<N;i++){const V=buf[i];if(isNaN(V)){pen=false;continue;}const X=x(i*SDT),Y=y(Math.max(-90,Math.min(60,V)));if(!pen){ctx.moveTo(X,Y);pen=true;}else ctx.lineTo(X,Y);}
+  ctx.stroke();
+  const cx=x(H.t%SW);ctx.fillStyle=C.eosin;ctx.beginPath();ctx.arc(cx,y(Math.max(-90,Math.min(60,H.V))),3.5,0,7);ctx.fill();
+}
+
+function bracket(ctx,x1,x2,yy,label,col){
+  if(x2-x1<2)return;ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=1.3;
+  ctx.beginPath();ctx.moveTo(x1,yy-4);ctx.lineTo(x1,yy);ctx.lineTo(x2,yy);ctx.lineTo(x2,yy-4);ctx.stroke();
+  ctx.font='11px "IBM Plex Mono", monospace';ctx.textAlign='center';ctx.textBaseline='top';
+  const tw=ctx.measureText(label).width;if(tw<x2-x1+30)ctx.fillText(label,(x1+x2)/2,yy+3);
+}
+function drawSarc(t){
+  const{ctx,w,h}=M;ctx.clearRect(0,0,w,h);
+  const sc=(w-36)/2.75, cx=w/2, top=34, bot=h-86, gap=(bot-top)/6, a=act();
+  const zx=s=>cx+s*Mu.L/2*sc, tipx=s=>cx+s*(Mu.L/2-THIN)*sc;
+  const rowY=i=>top+i*gap;
+  // labels
+  ctx.font='11px "IBM Plex Mono", monospace';ctx.textBaseline='bottom';ctx.textAlign='center';ctx.fillStyle=C.muted;
+  ctx.fillText('Z disc',zx(-1),top-12);ctx.fillText('Z disc',zx(1),top-12);ctx.fillText('M line',cx,top-12);
+  // M line
+  ctx.setLineDash([3,4]);ctx.strokeStyle=C.muted;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(cx,top-8);ctx.lineTo(cx,bot+8);ctx.stroke();ctx.setLineDash([]);
+  // Ca
+  ctx.fillStyle=C.ca;const nCa=Math.round(Mu.ca*caDots.length);
+  for(let i=0;i<nCa;i++){const d=caDots[i];ctx.globalAlpha=0.9;ctx.beginPath();ctx.arc(cx+d.x*Mu.L/2*sc*0.95+Math.sin(t*2+d.ph)*2,top+d.y*(bot-top)+Math.cos(t*1.7+d.ph)*2,2.2,0,7);ctx.fill();}
+  ctx.globalAlpha=1;
+  // thin filaments
+  for(let i=0;i<=6;i+=2){const yy=rowY(i);
+    for(const s of[-1,1]){const x0=zx(s),x1=tipx(s),n=Math.max(2,Math.floor(Math.abs(x0-x1)/5));
+      ctx.fillStyle=C.eosin;
+      for(let j=0;j<=n;j++){const xx=x0+(x1-x0)*j/n;ctx.beginPath();ctx.arc(xx,yy,2.6,0,7);ctx.fill();}
+      ctx.fillStyle=C.ink;
+      for(let j=1;j<=n;j+=3){const xx=x0+(x1-x0)*j/n;ctx.beginPath();ctx.arc(xx,yy+(i===0?2:-2)*0+0,1.1,0,7);ctx.fill();}
+      ctx.strokeStyle=C.ink;ctx.lineWidth=1.6;ctx.globalAlpha=0.85;const off=-a*4.5;
+      ctx.beginPath();ctx.moveTo(x0,yy+off);ctx.lineTo(x1,yy+off);ctx.stroke();ctx.globalAlpha=1;
+    }}
+  // thick filaments + heads
+  const full=gap-5, short=gap*0.5, pre=0.5, post=-0.5;
+  for(let r=0;r<3;r++){const yy=rowY(2*r+1);
+    ctx.fillStyle=C.hema;ctx.beginPath();if(ctx.roundRect)ctx.roundRect(cx-THICK/2*sc,yy-3,THICK*sc,6,3);else ctx.rect(cx-THICK/2*sc,yy-3,THICK*sc,6);ctx.fill();
+  }
+  let att=0;
+  for(const hd of heads){
+    const bx=cx+hd.side*hd.d*sc, by=rowY(2*hd.r+1)+hd.v*3, p=hd.p;let th,len,bound=false;
+    if(p<1){th=pre;len=short;}
+    else if(p<1.3){const f=(p-1)/0.3;th=pre;len=short+(full-short)*f;bound=f>0.6;}
+    else if(p<2){const f=(p-1.3)/0.7;th=pre+(post-pre)*f;len=full;bound=true;}
+    else if(p<3){th=post;len=full;bound=true;}
+    else if(p<3.3){const f=(p-3)/0.3;th=post;len=full-(full-short)*f;}
+    else{const f=(p-3.3)/0.7;th=post+(pre-post)*f;len=short;}
+    if(bound)att++;
+    const tx=bx+hd.side*Math.sin(th)*len, ty=by+hd.v*Math.cos(th)*len;
+    const isF=hd===featured;
+    ctx.strokeStyle=isF?C.eosin:C.hema;ctx.fillStyle=ctx.strokeStyle;ctx.globalAlpha=isF?1:(bound?0.95:0.5);ctx.lineWidth=isF?2.4:1.6;
+    ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(tx,ty);ctx.stroke();
+    ctx.beginPath();ctx.arc(tx,ty,isF?3.6:2.6,0,7);ctx.fill();
+    if(isF){ctx.lineWidth=1.4;ctx.beginPath();ctx.arc(tx,ty,6.5,0,7);ctx.stroke();}
+    ctx.globalAlpha=1;
+  }
+  // Z discs
+  ctx.strokeStyle=C.ink;ctx.lineWidth=2.4;
+  for(const s of[-1,1]){const xx=zx(s);ctx.beginPath();for(let yy=top-8,k=0;yy<=bot+8;yy+=7,k++)ctx[k?'lineTo':'moveTo'](xx+(k%2?3:-3),yy);ctx.stroke();}
+  // brackets
+  const b1=bot+20,b2=bot+42,b3=bot+64;
+  bracket(ctx,zx(-1),zx(1),b1,'Sarcomere '+Mu.L.toFixed(2)+' µm',C.ink);
+  bracket(ctx,cx-THICK/2*sc,cx+THICK/2*sc,b2,'A band',C.hema);
+  bracket(ctx,zx(-1),cx-THICK/2*sc,b3,'I band',C.eosin);
+  bracket(ctx,cx+THICK/2*sc,zx(1),b3,'I band',C.eosin);
+  const Hz=Math.max(0,Mu.L-2*THIN);
+  if(Hz>0.02)bracket(ctx,tipx(-1),tipx(1),b3,Hz>0.25?'H zone':'H',C.muted);
+  return att/heads.length;
+}
+
+/* ---------- UI updates ---------- */
+const cyc=[...document.querySelectorAll('#cycle li')];
+function setBar(id,frac,txt){$('#b'+id).style.width=(Math.max(0,Math.min(1,frac))*100).toFixed(1)+'%';$('#g'+id).textContent=txt??Math.round(frac*100)+'%';}
+function updateUI(attFrac){
+  const V=H.V,dV=H.dV;let ph;
+  if(V>-50&&dV>2)ph='Depolarizing: Na⁺ rushing in';
+  else if(V>-62&&dV<-1)ph='Repolarizing: K⁺ flowing out';
+  else if(V<-66.5)ph='Hyperpolarized: K⁺ gates slow to close';
+  else if(Math.abs(V+65)<1.2&&Math.abs(dV)<0.3)ph='Resting';
+  else ph=dV>0?'Graded depolarization':'Drifting back to rest';
+  $('#phase').textContent=ph;
+  const ch=$('#refr');let cls,txt;
+  if(H.h<0.2){cls='abs';txt='Absolute refractory';}else if(H.h<0.45||H.n>0.45){cls='rel';txt='Relative refractory';}else{cls='ready';txt='Ready to fire';}
+  ch.className='chip '+cls;ch.lastElementChild.textContent=txt;
+  setBar('m',H.m);setBar('h',H.h);setBar('n',H.n);
+  $('#vNow').textContent=fmt(Math.round(V))+' mV';
+  if(H.t>=lastPulse&&H.t-lastPulse<12)peak=Math.max(peak,V);
+  if(!peakShown&&H.t-lastPulse>=12){peakShown=true;$('#peak').textContent=fmt(Math.round(peak))+' mV · '+(peak>0?'spike':'no spike');}
+  const L=Mu.L,I=L-THICK,Hz=Math.max(0,L-2*THIN);
+  $('#tL').textContent=L.toFixed(2)+' µm';$('#tLp').textContent=L>LREST-0.005?'at rest':Math.round((1-L/LREST)*100)+'% shorter';
+  $('#tI').textContent=I.toFixed(2)+' µm';$('#tH').textContent=Hz.toFixed(2)+' µm';
+  const a=act();setBar('ca',Mu.ca);setBar('act',a);setBar('att',attFrac);
+  const st=Math.floor(featured.p)%4;cyc.forEach((li,i)=>li.classList.toggle('on',i===st));
+  let note;
+  if(!Mu.atp&&attFrac>0.05)note='No ATP: bound heads can’t let go, and SERCA can’t pump Ca²⁺ back. The sarcomere is locked (rigor).';
+  else if(!Mu.atp)note='No ATP: the muscle can’t clear calcium or recycle heads.';
+  else if(a>0.5)note='Ca²⁺ is bound to troponin, tropomyosin has shifted, and heads are cycling.';
+  else if(L<LREST-0.01)note='Calcium is being pumped away. Sites re-cover and the sarcomere springs back.';
+  else note='Muscle relaxed. Tropomyosin covers the binding sites.';
+  $('#mnote').textContent=note;
+}
+
+let last=performance.now(), prevV=H.V;
+function frame(now){
+  const rdt=Math.min(0.05,(now-last)/1000);last=now;
+  const simAdv=rdt*1000/slow;const n=Math.ceil(simAdv/0.01),dt=simAdv/n;
+  for(let i=0;i<n;i++){const I=step(dt);
+    if(prevV<0&&H.V>=0)onSpike();prevV=H.V;
+    while(H.t>=nextSample){const s=Math.floor((nextSample%SW)/SDT+1e-6)%N;buf[s]=H.V;stimB[s]=I>0?1:0;for(let k=1;k<=10;k++){buf[(s+k)%N]=NaN;stimB[(s+k)%N]=0;}nextSample+=SDT;}
+  }
+  pulses=pulses.filter(p=>p.t1>H.t);
+  updateMuscle(rdt);
+  drawScope();const att=drawSarc(now/1000);updateUI(att);
+  requestAnimationFrame(frame);
+}
+// open with one example spike already on the trace
+lastPulse=2;peak=-999;peakShown=false;pulses.push({t0:2,t1:3,amp:10});
+for(let i=0;i<1200;i++){const I=step(0.01);if(H.t>=lastPulse)peak=Math.max(peak,H.V);if(prevV<0&&H.V>=0){spikes++;$('#count').textContent=spikes;}prevV=H.V;while(H.t>=nextSample){const s=Math.floor((nextSample%SW)/SDT+1e-6)%N;buf[s]=H.V;stimB[s]=I>0?1:0;nextSample+=SDT;}}
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
